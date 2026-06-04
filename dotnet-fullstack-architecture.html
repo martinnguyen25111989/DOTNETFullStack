@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>.NET FullStack Architecture — Code to Runtime (Shopify Order Example)</title>
+<style>
+  :root {
+    --bg: #0b1020;
+    --panel: #121a31;
+    --panel-2: #18233f;
+    --ink: #e8edf7;
+    --muted: #9fb0cc;
+    --line: #2a3a5e;
+    --accent: #6aa9ff;
+    --frontend: #4f9dff;
+    --backend: #7c5cff;
+    --data: #19c37d;
+    --cloud: #ff9f43;
+    --security: #ff5d73;
+    --qa: #2dd4bf;
+    --monitor: #f7c948;
+    --integration: #c084fc;
+    --collab: #94a3b8;
+    --ok: #19c37d;
+    --shadow: 0 8px 30px rgba(0,0,0,.35);
+    font-synthesis: none;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: radial-gradient(1200px 600px at 80% -10%, #16234a 0%, var(--bg) 55%) fixed;
+    color: var(--ink);
+    font-family: "Segoe UI", system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.5;
+    padding: 24px clamp(12px, 4vw, 56px) 80px;
+  }
+  header.page {
+    max-width: 1400px; margin: 0 auto 22px;
+  }
+  h1 {
+    font-size: clamp(22px, 3.2vw, 34px);
+    margin: 0 0 6px;
+    letter-spacing: .3px;
+  }
+  h1 .dot { color: var(--accent); }
+  .subtitle { color: var(--muted); margin: 0 0 18px; font-size: 15px; }
+  .legend {
+    display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center;
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 12px; padding: 12px 16px; box-shadow: var(--shadow);
+  }
+  .legend .chip { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+  .swatch { width: 14px; height: 14px; border-radius: 4px; display: inline-block; }
+
+  .wrap { max-width: 1400px; margin: 0 auto; }
+  section.block {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 20px clamp(14px, 2.5vw, 28px);
+    margin: 22px 0;
+    box-shadow: var(--shadow);
+  }
+  section.block > h2 {
+    margin: 0 0 4px; font-size: 19px; display: flex; align-items: center; gap: 10px;
+  }
+  section.block > .hint { color: var(--muted); font-size: 13px; margin: 0 0 18px; }
+  .bar { width: 6px; height: 22px; border-radius: 3px; background: var(--accent); display: inline-block; }
+
+  /* Lifecycle pipeline */
+  .pipeline {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 10px;
+  }
+  .stage {
+    position: relative;
+    background: linear-gradient(180deg, var(--panel-2), #101a33);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 14px 12px;
+    text-align: center;
+    transition: transform .15s ease, border-color .15s ease, box-shadow .15s;
+  }
+  .stage:hover { transform: translateY(-3px); border-color: var(--accent); box-shadow: 0 6px 18px rgba(106,169,255,.2); }
+  .stage .num {
+    width: 26px; height: 26px; border-radius: 50%;
+    background: var(--accent); color: #06122b; font-weight: 700;
+    display: grid; place-items: center; margin: 0 auto 8px; font-size: 13px;
+  }
+  .stage .icon { font-size: 22px; }
+  .stage .name { font-weight: 600; font-size: 14px; margin-top: 4px; }
+  .stage .tools { color: var(--muted); font-size: 11.5px; margin-top: 6px; line-height: 1.35; }
+  .stage:not(:last-child)::after {
+    content: "→"; position: absolute; right: -9px; top: 50%; transform: translateY(-50%);
+    color: var(--accent); font-weight: 700; z-index: 2; font-size: 16px;
+  }
+  @media (max-width: 1000px) { .pipeline { grid-template-columns: repeat(2, 1fr);} .stage::after{display:none;} }
+
+  /* Architecture layers */
+  .arch {
+    display: grid;
+    grid-template-columns: 200px 1fr 200px;
+    gap: 16px;
+    align-items: stretch;
+  }
+  @media (max-width: 1100px) { .arch { grid-template-columns: 1fr; } }
+  .sidecol { display: flex; flex-direction: column; gap: 14px; }
+  .layers { display: flex; flex-direction: column; gap: 14px; }
+
+  .layer {
+    border: 1px solid var(--line);
+    border-left: 5px solid var(--accent);
+    border-radius: 12px;
+    background: var(--panel-2);
+    padding: 14px 16px;
+  }
+  .layer h3 { margin: 0 0 4px; font-size: 15.5px; display:flex; align-items:center; gap:8px; }
+  .layer .role { color: var(--muted); font-size: 12.5px; margin: 0 0 10px; }
+  .nodes { display: flex; flex-wrap: wrap; gap: 8px; }
+  .node {
+    font-size: 12px; padding: 6px 10px; border-radius: 999px;
+    background: #0d1731; border: 1px solid var(--line); color: var(--ink);
+    transition: background .15s, border-color .15s, transform .15s;
+  }
+  .node:hover { background: #16244a; border-color: var(--accent); transform: translateY(-1px); }
+  .arrow-down { text-align:center; color: var(--accent); font-size: 18px; margin: -6px 0; }
+
+  .cross {
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--panel-2);
+    padding: 12px 14px;
+    flex: 1;
+  }
+  .cross h4 { margin: 0 0 6px; font-size: 14px; display:flex; align-items:center; gap:8px; }
+  .cross ul { margin: 0; padding-left: 16px; color: var(--muted); font-size: 12px; }
+  .cross li { margin: 2px 0; }
+
+  /* Color helpers */
+  .c-frontend { border-left-color: var(--frontend); }
+  .c-backend { border-left-color: var(--backend); }
+  .c-data { border-left-color: var(--data); }
+  .c-cloud { border-left-color: var(--cloud); }
+
+  /* Shopify order demo */
+  .demo {
+    display: grid; grid-template-columns: 1.1fr .9fr; gap: 20px;
+  }
+  @media (max-width: 1000px) { .demo { grid-template-columns: 1fr; } }
+  .demo-controls { display:flex; gap:10px; flex-wrap: wrap; margin-bottom: 16px; }
+  button {
+    font: inherit; font-size: 14px; font-weight: 600;
+    background: var(--accent); color: #06122b; border: none;
+    padding: 9px 16px; border-radius: 10px; cursor: pointer;
+    transition: filter .15s, transform .1s;
+  }
+  button:hover { filter: brightness(1.08); }
+  button:active { transform: translateY(1px); }
+  button.ghost { background: transparent; color: var(--ink); border: 1px solid var(--line); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+
+  .flow { display: flex; flex-direction: column; gap: 8px; }
+  .step {
+    display: grid; grid-template-columns: 34px 1fr; gap: 12px;
+    border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px;
+    background: var(--panel-2); opacity: .5; transition: all .25s ease;
+  }
+  .step.active { opacity: 1; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(106,169,255,.25) inset, var(--shadow); transform: scale(1.01); }
+  .step.done { opacity: .85; }
+  .step .badge {
+    width: 30px; height: 30px; border-radius: 8px; display:grid; place-items:center;
+    font-weight: 700; font-size: 13px; color: #06122b; background: var(--muted);
+  }
+  .step.active .badge { background: var(--accent); }
+  .step.done .badge { background: var(--ok); color:#04210f; }
+  .step .layer-tag { font-size: 10.5px; text-transform: uppercase; letter-spacing:.6px; color: var(--muted); font-weight:700; }
+  .step .title { font-size: 14px; font-weight: 600; margin: 1px 0; }
+  .step .desc { font-size: 12.5px; color: var(--muted); }
+
+  .codepane {
+    background: #0a1026; border: 1px solid var(--line); border-radius: 12px;
+    padding: 0; overflow: hidden; position: sticky; top: 16px;
+  }
+  .codepane .tabbar { display:flex; gap:2px; background:#0d1430; border-bottom:1px solid var(--line); padding: 8px 8px 0; overflow-x:auto; }
+  .codepane .tab {
+    font-size: 11.5px; padding: 7px 11px; border-radius: 8px 8px 0 0; cursor: pointer;
+    color: var(--muted); white-space: nowrap; border:1px solid transparent; border-bottom:none;
+  }
+  .codepane .tab.active { background:#0a1026; color: var(--ink); border-color: var(--line); }
+  pre {
+    margin: 0; padding: 16px; overflow:auto; max-height: 460px;
+    font-family: "Cascadia Code", "Fira Code", Consolas, monospace; font-size: 12.3px; line-height: 1.55;
+  }
+  code .k { color:#7c9eff; } code .t { color:#4ec9b0; } code .s { color:#ce9178; }
+  code .c { color:#6a9955; font-style: italic; } code .n { color:#dcdcaa; } code .m { color:#b5cea8; }
+
+  footer { max-width: 1400px; margin: 30px auto 0; color: var(--muted); font-size: 12px; text-align:center; }
+  .progress { height: 4px; background: var(--line); border-radius: 4px; overflow:hidden; margin-bottom: 14px; }
+  .progress > i { display:block; height:100%; width:0; background: linear-gradient(90deg, var(--accent), var(--data)); transition: width .3s; }
+</style>
+</head>
+<body>
+<header class="page">
+  <h1>.NET FullStack Architecture <span class="dot">●</span> Code → Runtime</h1>
+  <p class="subtitle">Interactive workflow map of a modern .NET (ASP.NET Core) full-stack system — traced through a real <strong>Shopify Order</strong> example. Hover nodes, click stages, and run the animated request flow.</p>
+  <div class="legend">
+    <span class="chip"><span class="swatch" style="background:var(--frontend)"></span>Frontend</span>
+    <span class="chip"><span class="swatch" style="background:var(--backend)"></span>Backend</span>
+    <span class="chip"><span class="swatch" style="background:var(--data)"></span>Database / Data Access</span>
+    <span class="chip"><span class="swatch" style="background:var(--cloud)"></span>Cloud / DevOps</span>
+    <span class="chip"><span class="swatch" style="background:var(--security)"></span>Security</span>
+    <span class="chip"><span class="swatch" style="background:var(--qa)"></span>QA / Testing</span>
+    <span class="chip"><span class="swatch" style="background:var(--monitor)"></span>Monitoring</span>
+    <span class="chip"><span class="swatch" style="background:var(--integration)"></span>Integration / Messaging</span>
+    <span class="chip"><span class="swatch" style="background:var(--collab)"></span>Collaboration / Process</span>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ============ LIFECYCLE PIPELINE ============ -->
+  <section class="block">
+    <h2><span class="bar"></span>1 · Full Lifecycle — From Code to Runtime</h2>
+    <p class="hint">The path every change travels: an engineer commits code, it is built and tested, packaged into a container, deployed to the cloud, run, and observed. Feedback from monitoring loops back to the next commit.</p>
+    <div class="pipeline" id="pipeline">
+      <div class="stage"><div class="num">1</div><div class="icon">⌨️</div><div class="name">Code</div><div class="tools">VS / VS Code · C# · .NET SDK · Git · feature branch</div></div>
+      <div class="stage"><div class="num">2</div><div class="icon">🔀</div><div class="name">Commit & PR</div><div class="tools">GitHub / Azure Repos · PR review · branch policy</div></div>
+      <div class="stage"><div class="num">3</div><div class="icon">⚙️</div><div class="name">Build</div><div class="tools">dotnet restore/build · MSBuild · NuGet · analyzers</div></div>
+      <div class="stage"><div class="num">4</div><div class="icon">🧪</div><div class="name">Test</div><div class="tools">xUnit · unit/integration · coverage · SAST scan</div></div>
+      <div class="stage"><div class="num">5</div><div class="icon">📦</div><div class="name">Package</div><div class="tools">dotnet publish · Docker image · push to registry</div></div>
+      <div class="stage"><div class="num">6</div><div class="icon">🚀</div><div class="name">Deploy</div><div class="tools">CI/CD · IaC · AKS / App Service · blue-green</div></div>
+      <div class="stage"><div class="num">7</div><div class="icon">📈</div><div class="name">Run & Observe</div><div class="tools">Kestrel runtime · logs · metrics · traces · alerts</div></div>
+    </div>
+  </section>
+
+  <!-- ============ ARCHITECTURE LAYERS ============ -->
+  <section class="block">
+    <h2><span class="bar"></span>2 · Layered Architecture & Cross-Cutting Concerns</h2>
+    <p class="hint">Request flows top-to-bottom through the runtime layers (center). The side columns are cross-cutting concerns that wrap every layer.</p>
+    <div class="arch">
+
+      <!-- LEFT cross-cutting -->
+      <div class="sidecol">
+        <div class="cross">
+          <h4><span class="swatch" style="background:var(--security)"></span>Security</h4>
+          <ul>
+            <li>OAuth2 / OIDC · JWT</li>
+            <li>Azure AD / Identity</li>
+            <li>HTTPS / TLS · CORS</li>
+            <li>Key Vault · secrets</li>
+            <li>Input validation · OWASP</li>
+            <li>RBAC / authorization</li>
+          </ul>
+        </div>
+        <div class="cross">
+          <h4><span class="swatch" style="background:var(--qa)"></span>QA / Testing</h4>
+          <ul>
+            <li>xUnit / NUnit · Moq</li>
+            <li>Integration (WebApplicationFactory)</li>
+            <li>Playwright / Selenium E2E</li>
+            <li>Postman · k6 load tests</li>
+            <li>Code coverage gates</li>
+          </ul>
+        </div>
+        <div class="cross">
+          <h4><span class="swatch" style="background:var(--collab)"></span>Collaboration / Process</h4>
+          <ul>
+            <li>Agile / Scrum · Jira / Azure Boards</li>
+            <li>Git flow · PR reviews</li>
+            <li>Confluence / docs</li>
+            <li>Teams / Slack</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- CENTER layers -->
+      <div class="layers">
+        <div class="layer c-frontend">
+          <h3><span class="swatch" style="background:var(--frontend)"></span>Frontend (Presentation)</h3>
+          <p class="role">User-facing UI calling the backend over HTTPS/REST.</p>
+          <div class="nodes">
+            <span class="node">Blazor</span><span class="node">React / Angular</span>
+            <span class="node">Razor Pages / MVC</span><span class="node">TypeScript</span>
+            <span class="node">HTML / CSS</span><span class="node">REST / SignalR client</span>
+          </div>
+        </div>
+        <div class="arrow-down">▼ HTTPS / JSON</div>
+        <div class="layer c-backend">
+          <h3><span class="swatch" style="background:var(--backend)"></span>Backend (Application & Domain)</h3>
+          <p class="role">ASP.NET Core API: controllers → services → domain logic.</p>
+          <div class="nodes">
+            <span class="node">ASP.NET Core Web API</span><span class="node">Minimal API / Controllers</span>
+            <span class="node">MediatR / CQRS</span><span class="node">Clean Architecture</span>
+            <span class="node">FluentValidation</span><span class="node">AutoMapper</span><span class="node">DI container</span>
+          </div>
+        </div>
+        <div class="arrow-down">▼ Repository / EF Core</div>
+        <div class="layer c-data">
+          <h3><span class="swatch" style="background:var(--data)"></span>Database / Data Access</h3>
+          <p class="role">Persistence via EF Core, plus caching and search.</p>
+          <div class="nodes">
+            <span class="node">EF Core / Dapper</span><span class="node">SQL Server / PostgreSQL</span>
+            <span class="node">Migrations</span><span class="node">Redis cache</span>
+            <span class="node">Azure Blob</span><span class="node">Cosmos DB</span>
+          </div>
+        </div>
+        <div class="arrow-down">▼ runs on</div>
+        <div class="layer c-cloud">
+          <h3><span class="swatch" style="background:var(--cloud)"></span>Cloud / DevOps (Runtime & Delivery)</h3>
+          <p class="role">Where it builds, ships, and runs.</p>
+          <div class="nodes">
+            <span class="node">Docker</span><span class="node">Kubernetes / AKS</span>
+            <span class="node">Azure App Service</span><span class="node">GitHub Actions / Azure DevOps</span>
+            <span class="node">Terraform / Bicep</span><span class="node">API Gateway / Ingress</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT cross-cutting -->
+      <div class="sidecol">
+        <div class="cross">
+          <h4><span class="swatch" style="background:var(--monitor)"></span>Monitoring / Observability</h4>
+          <ul>
+            <li>App Insights / OpenTelemetry</li>
+            <li>Serilog structured logs</li>
+            <li>Prometheus + Grafana</li>
+            <li>Health checks · /healthz</li>
+            <li>Distributed tracing</li>
+            <li>Alerts · dashboards</li>
+          </ul>
+        </div>
+        <div class="cross">
+          <h4><span class="swatch" style="background:var(--integration)"></span>Integration / Messaging</h4>
+          <ul>
+            <li>Shopify Admin API / Webhooks</li>
+            <li>Azure Service Bus / RabbitMQ</li>
+            <li>Kafka event streams</li>
+            <li>MassTransit</li>
+            <li>Payment / shipping APIs</li>
+          </ul>
+        </div>
+        <div class="cross">
+          <h4><span class="swatch" style="background:var(--cloud)"></span>Infra / Scaling</h4>
+          <ul>
+            <li>Load balancer · autoscale</li>
+            <li>CDN · caching</li>
+            <li>Secrets / config store</li>
+            <li>Backups · DR</li>
+          </ul>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ============ SHOPIFY ORDER EXAMPLE ============ -->
+  <section class="block">
+    <h2><span class="bar"></span>3 · Worked Example — Creating a Shopify Order</h2>
+    <p class="hint">Trace a single "Place Order" action end-to-end through the full .NET stack. Click <strong>Run flow</strong> to step through, and watch the matching code light up.</p>
+
+    <div class="demo-controls">
+      <button id="btnRun">▶ Run flow</button>
+      <button id="btnStep" class="ghost">⏭ Next step</button>
+      <button id="btnReset" class="ghost">↺ Reset</button>
+      <span id="status" style="align-self:center;color:var(--muted);font-size:13px;"></span>
+    </div>
+    <div class="progress"><i id="prog"></i></div>
+
+    <div class="demo">
+      <div class="flow" id="flow"><!-- steps injected by JS --></div>
+
+      <div class="codepane">
+        <div class="tabbar" id="tabbar"></div>
+        <pre><code id="codeview"></code></pre>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<footer>
+  Single-file interactive diagram · .NET FullStack lifecycle &amp; Shopify Order example · open in any browser, no build step required.
+</footer>
+
+<script>
+/* ---------- Shopify Order: end-to-end steps ---------- */
+const steps = [
+  {
+    tag: "Frontend",
+    color: "var(--frontend)",
+    title: "Customer clicks “Place Order”",
+    desc: "Blazor/React component collects the cart and POSTs JSON to the API over HTTPS. A JWT from login is attached.",
+    code: "frontend"
+  },
+  {
+    tag: "Security",
+    color: "var(--security)",
+    title: "Gateway authenticates the request",
+    desc: "API Gateway / middleware validates TLS, JWT bearer token, and CORS before the request reaches the controller.",
+    code: "security"
+  },
+  {
+    tag: "Backend",
+    color: "var(--backend)",
+    title: "OrdersController receives the request",
+    desc: "ASP.NET Core controller model-binds & validates the DTO (FluentValidation), then dispatches a command via MediatR.",
+    code: "controller"
+  },
+  {
+    tag: "Backend",
+    color: "var(--backend)",
+    title: "Application service applies domain rules",
+    desc: "CreateOrderHandler checks stock, computes totals/tax, and builds the Order aggregate (Clean Architecture / CQRS).",
+    code: "handler"
+  },
+  {
+    tag: "Database",
+    color: "var(--data)",
+    title: "Persist via EF Core repository",
+    desc: "Repository + DbContext insert the Order inside a transaction; SaveChangesAsync writes to SQL Server.",
+    code: "data"
+  },
+  {
+    tag: "Integration",
+    color: "var(--integration)",
+    title: "Sync to Shopify + publish event",
+    desc: "Call the Shopify Admin REST API to create the order, then publish OrderCreated to Service Bus for downstream consumers.",
+    code: "integration"
+  },
+  {
+    tag: "Monitoring",
+    color: "var(--monitor)",
+    title: "Log, trace & emit metrics",
+    desc: "Serilog + OpenTelemetry record a structured log, a distributed trace span, and an orders_created counter.",
+    code: "monitoring"
+  },
+  {
+    tag: "Frontend",
+    color: "var(--frontend)",
+    title: "201 Created → confirmation UI",
+    desc: "API returns the OrderId; the UI shows the order confirmation. A SignalR push can update order status live.",
+    code: "response"
+  },
+  {
+    tag: "Cloud/DevOps",
+    color: "var(--cloud)",
+    title: "Runs in AKS, shipped by CI/CD",
+    desc: "All of the above runs in a container on AKS, deployed by GitHub Actions, autoscaled behind an ingress + load balancer.",
+    code: "devops"
+  }
+];
+
+/* ---------- Code snippets per step (lightly highlighted) ---------- */
+const snippets = {
+  frontend: {
+    label: "OrderForm.razor / api.ts",
+    code:
+`<span class="c">// Blazor component — submit the cart to the API</span>
+<span class="k">private async</span> <span class="t">Task</span> <span class="n">PlaceOrder</span>() {
+    <span class="k">var</span> req = <span class="k">new</span> <span class="t">CreateOrderRequest</span> {
+        CustomerId = <span class="t">State</span>.CustomerId,
+        Items      = <span class="t">Cart</span>.Items
+    };
+    <span class="k">var</span> resp = <span class="k">await</span> Http.<span class="n">PostAsJsonAsync</span>(
+        <span class="s">"/api/orders"</span>, req);   <span class="c">// JWT added by handler</span>
+
+    <span class="k">if</span> (resp.IsSuccessStatusCode) {
+        <span class="k">var</span> order = <span class="k">await</span> resp.<span class="n">Content</span>
+            .<span class="n">ReadFromJsonAsync</span>&lt;<span class="t">OrderDto</span>&gt;();
+        Nav.<span class="n">NavigateTo</span>(<span class="s">$"/orders/{order.Id}"</span>);
+    }
+}`
+  },
+  security: {
+    label: "Program.cs (auth middleware)",
+    code:
+`<span class="c">// Authentication & authorization pipeline</span>
+builder.Services
+    .<span class="n">AddAuthentication</span>(<span class="t">JwtBearerDefaults</span>.AuthenticationScheme)
+    .<span class="n">AddJwtBearer</span>(o =&gt; {
+        o.Authority = builder.Configuration[<span class="s">"Auth:Authority"</span>];
+        o.TokenValidationParameters = <span class="k">new</span>() {
+            ValidateIssuer = <span class="k">true</span>,
+            ValidateAudience = <span class="k">true</span>,
+            ValidateLifetime = <span class="k">true</span>
+        };
+    });
+
+app.<span class="n">UseHttpsRedirection</span>();
+app.<span class="n">UseCors</span>(<span class="s">"frontend"</span>);
+app.<span class="n">UseAuthentication</span>();
+app.<span class="n">UseAuthorization</span>();   <span class="c">// secrets via Key Vault</span>`
+  },
+  controller: {
+    label: "OrdersController.cs",
+    code:
+`[<span class="t">ApiController</span>]
+[<span class="t">Route</span>(<span class="s">"api/orders"</span>)]
+[<span class="t">Authorize</span>]
+<span class="k">public class</span> <span class="t">OrdersController</span>(<span class="t">IMediator</span> mediator) : <span class="t">ControllerBase</span>
+{
+    [<span class="t">HttpPost</span>]
+    <span class="k">public async</span> <span class="t">Task</span>&lt;<span class="t">IActionResult</span>&gt; <span class="n">Create</span>(
+        <span class="t">CreateOrderRequest</span> req)
+    {
+        <span class="c">// Model + FluentValidation already ran</span>
+        <span class="k">var</span> id = <span class="k">await</span> mediator.<span class="n">Send</span>(
+            <span class="k">new</span> <span class="t">CreateOrderCommand</span>(req));
+
+        <span class="k">return</span> <span class="n">CreatedAtAction</span>(<span class="k">nameof</span>(GetById),
+            <span class="k">new</span> { id }, <span class="k">new</span> { id });
+    }
+}`
+  },
+  handler: {
+    label: "CreateOrderHandler.cs (domain)",
+    code:
+`<span class="k">public class</span> <span class="t">CreateOrderHandler</span>(
+    <span class="t">IOrderRepository</span> repo,
+    <span class="t">IInventoryService</span> inventory,
+    <span class="t">IShopifyClient</span> shopify,
+    <span class="t">IPublishEndpoint</span> bus)
+    : <span class="t">IRequestHandler</span>&lt;<span class="t">CreateOrderCommand</span>, <span class="t">Guid</span>&gt;
+{
+    <span class="k">public async</span> <span class="t">Task</span>&lt;<span class="t">Guid</span>&gt; <span class="n">Handle</span>(
+        <span class="t">CreateOrderCommand</span> cmd, <span class="t">CancellationToken</span> ct)
+    {
+        <span class="k">await</span> inventory.<span class="n">EnsureStockAsync</span>(cmd.Items, ct);
+
+        <span class="k">var</span> order = <span class="t">Order</span>.<span class="n">Create</span>(cmd.CustomerId, cmd.Items);
+        order.<span class="n">CalculateTotals</span>();   <span class="c">// price + tax rules</span>
+
+        <span class="k">await</span> repo.<span class="n">AddAsync</span>(order, ct);
+        <span class="k">return</span> order.Id;
+    }
+}`
+  },
+  data: {
+    label: "OrderRepository.cs + EF Core",
+    code:
+`<span class="k">public class</span> <span class="t">OrderRepository</span>(<span class="t">AppDbContext</span> db) : <span class="t">IOrderRepository</span>
+{
+    <span class="k">public async</span> <span class="t">Task</span> <span class="n">AddAsync</span>(<span class="t">Order</span> order, <span class="t">CancellationToken</span> ct)
+    {
+        db.Orders.<span class="n">Add</span>(order);
+        <span class="k">await</span> db.<span class="n">SaveChangesAsync</span>(ct);  <span class="c">// INSERT in a tx</span>
+    }
+}
+
+<span class="c">// DbContext mapping</span>
+<span class="k">public</span> <span class="t">DbSet</span>&lt;<span class="t">Order</span>&gt; Orders =&gt; <span class="n">Set</span>&lt;<span class="t">Order</span>&gt;();
+<span class="c">// dotnet ef migrations add AddOrders; ef database update</span>
+<span class="c">// Redis caches hot product reads; SQL Server is source of truth</span>`
+  },
+  integration: {
+    label: "ShopifyClient + Service Bus",
+    code:
+`<span class="c">// 1) Push the order to Shopify Admin API</span>
+<span class="k">var</span> payload = <span class="k">new</span> { order = order.<span class="n">ToShopify</span>() };
+<span class="k">var</span> res = <span class="k">await</span> _http.<span class="n">PostAsJsonAsync</span>(
+    <span class="s">"/admin/api/2024-04/orders.json"</span>, payload);
+res.<span class="n">EnsureSuccessStatusCode</span>();
+
+<span class="c">// 2) Publish a domain event (MassTransit / Azure Service Bus)</span>
+<span class="k">await</span> bus.<span class="n">Publish</span>(<span class="k">new</span> <span class="t">OrderCreated</span>(
+    order.Id, order.CustomerId, order.Total));
+
+<span class="c">// Downstream consumers: email, shipping, analytics,</span>
+<span class="c">// and Shopify webhooks (orders/paid) flow back in.</span>`
+  },
+  monitoring: {
+    label: "Serilog + OpenTelemetry",
+    code:
+`<span class="k">using</span> (<span class="t">LogContext</span>.<span class="n">PushProperty</span>(<span class="s">"OrderId"</span>, order.Id))
+{
+    _logger.<span class="n">LogInformation</span>(
+        <span class="s">"Order {OrderId} created for {Customer}, total {Total}"</span>,
+        order.Id, order.CustomerId, order.Total);
+}
+
+<span class="c">// Metric + trace span (OpenTelemetry → App Insights)</span>
+_meter.<span class="n">CreateCounter</span>&lt;<span class="k">long</span>&gt;(<span class="s">"orders_created"</span>).<span class="n">Add</span>(1);
+<span class="k">using</span> <span class="k">var</span> span = _activity.<span class="n">StartActivity</span>(<span class="s">"CreateOrder"</span>);
+
+<span class="c">// /healthz liveness + readiness probes power AKS + alerts</span>`
+  },
+  response: {
+    label: "HTTP 201 + SignalR push",
+    code:
+`<span class="c">// API → client</span>
+HTTP/1.1 <span class="m">201</span> Created
+Location: /api/orders/3f2a...
+{ <span class="s">"id"</span>: <span class="s">"3f2a9c..."</span>, <span class="s">"status"</span>: <span class="s">"Confirmed"</span> }
+
+<span class="c">// Optional live status update to the browser</span>
+<span class="k">await</span> _hub.Clients
+    .<span class="n">User</span>(order.CustomerId)
+    .<span class="n">SendAsync</span>(<span class="s">"OrderStatus"</span>, order.Id, <span class="s">"Confirmed"</span>);
+
+<span class="c">// UI navigates to the confirmation page.</span>`
+  },
+  devops: {
+    label: "Dockerfile + CI/CD + AKS",
+    code:
+`<span class="c"># Dockerfile (multi-stage)</span>
+<span class="k">FROM</span> mcr.microsoft.com/dotnet/sdk:8.0 <span class="k">AS</span> build
+<span class="k">RUN</span> dotnet publish -c Release -o /app
+
+<span class="k">FROM</span> mcr.microsoft.com/dotnet/aspnet:8.0
+<span class="k">COPY</span> --from=build /app .
+<span class="k">ENTRYPOINT</span> [<span class="s">"dotnet"</span>, <span class="s">"Orders.Api.dll"</span>]
+
+<span class="c"># GitHub Actions: build → test → docker push → deploy</span>
+<span class="c"># kubectl / Helm rolls out to AKS (blue-green),</span>
+<span class="c"># Terraform provisions SQL, Service Bus, Key Vault,</span>
+<span class="c"># ingress + load balancer + autoscaler handle traffic.</span>`
+  }
+};
+
+/* ---------- Render steps + tabs ---------- */
+const flowEl = document.getElementById('flow');
+const tabbar = document.getElementById('tabbar');
+const codeview = document.getElementById('codeview');
+const statusEl = document.getElementById('status');
+const prog = document.getElementById('prog');
+
+steps.forEach((s, i) => {
+  const div = document.createElement('div');
+  div.className = 'step';
+  div.dataset.i = i;
+  div.innerHTML =
+    `<div class="badge">${i+1}</div>
+     <div>
+       <div class="layer-tag" style="color:${s.color}">${s.tag}</div>
+       <div class="title">${s.title}</div>
+       <div class="desc">${s.desc}</div>
+     </div>`;
+  div.addEventListener('click', () => goTo(i));
+  flowEl.appendChild(div);
+});
+
+const tabKeys = Object.keys(snippets);
+tabKeys.forEach((k, i) => {
+  const t = document.createElement('div');
+  t.className = 'tab' + (i === 0 ? ' active' : '');
+  t.textContent = snippets[k].label;
+  t.dataset.key = k;
+  t.addEventListener('click', () => showCode(k));
+  tabbar.appendChild(t);
+});
+
+function showCode(key) {
+  codeview.innerHTML = snippets[key].code;
+  [...tabbar.children].forEach(t => t.classList.toggle('active', t.dataset.key === key));
+}
+
+let current = -1;
+let timer = null;
+
+function render() {
+  [...flowEl.children].forEach((el, i) => {
+    el.classList.toggle('active', i === current);
+    el.classList.toggle('done', i < current);
+  });
+  const pct = current < 0 ? 0 : ((current + 1) / steps.length) * 100;
+  prog.style.width = pct + '%';
+  if (current >= 0) {
+    showCode(steps[current].code);
+    flowEl.children[current].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    statusEl.textContent = `Step ${current+1} / ${steps.length} — ${steps[current].tag}`;
+  } else {
+    statusEl.textContent = 'Ready. Press “Run flow”.';
+  }
+}
+
+function goTo(i) {
+  stopAuto();
+  current = i;
+  render();
+}
+
+function next() {
+  if (current < steps.length - 1) { current++; render(); }
+  else { stopAuto(); statusEl.textContent = '✔ Order complete — request handled end-to-end.'; }
+}
+
+function stopAuto() { if (timer) { clearInterval(timer); timer = null; document.getElementById('btnRun').textContent = '▶ Run flow'; } }
+
+document.getElementById('btnRun').addEventListener('click', () => {
+  if (timer) { stopAuto(); return; }
+  if (current >= steps.length - 1) current = -1;
+  document.getElementById('btnRun').textContent = '⏸ Pause';
+  next();
+  timer = setInterval(() => {
+    if (current >= steps.length - 1) { stopAuto(); statusEl.textContent = '✔ Order complete — request handled end-to-end.'; return; }
+    next();
+  }, 1700);
+});
+document.getElementById('btnStep').addEventListener('click', () => { stopAuto(); next(); });
+document.getElementById('btnReset').addEventListener('click', () => { stopAuto(); current = -1; render(); showCode(tabKeys[0]); });
+
+showCode(tabKeys[0]);
+render();
+</script>
+</body>
+</html>
