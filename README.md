@@ -8,7 +8,7 @@ through a real-world **Shopify Order** example.
 
 ## 🌐 Live demo (GitHub Pages)
 
-Once Pages is enabled (see [Deploy](#-deploy-on-github-pages)), the site is published at:
+Once Pages is enabled (see [Deploy](#-deploy-on-github-pages)), the site is published from `main` at:
 
 ```
 https://martinnguyen25111989.github.io/dotnetfullstack/
@@ -56,23 +56,18 @@ the whole stack, with the matching code snippet lighting up at each step:
 
 ## 🚀 Deploy on GitHub Pages
 
-This repo includes a workflow at
-[`.github/workflows/deploy-pages.yml`](./.github/workflows/deploy-pages.yml)
-that publishes the site automatically.
+The site is a single static file (`index.html`) served straight from a branch —
+no build step or workflow required.
 
 **One-time setup (in the GitHub UI):**
 
-1. Go to **Settings → Pages**.
-2. Under **Build and deployment → Source**, choose **GitHub Actions**.
-3. Push to a tracked branch (or run the workflow manually via **Actions →
-   Deploy to GitHub Pages → Run workflow**).
+1. Go to **Settings → Pages**
+   (https://github.com/martinnguyen25111989/DOTNETFullStack/settings/pages).
+2. Under **Build and deployment → Source**, choose **Deploy from a branch**.
+3. Set **Branch** to `main` and **Folder** to `/ (root)`, then click **Save**.
 
-The workflow then uploads the repo root and deploys `index.html`. The live URL
-appears in the workflow run summary and under **Settings → Pages**.
-
-> If you want Pages to deploy from the default branch, merge this branch into
-> `main` (the workflow already triggers on `main`, `master`, and the current
-> feature branch).
+GitHub then publishes `index.html` at the live URL above (give it a minute on
+the first deploy). Every push to `main` re-publishes automatically.
 
 ## 🛠 Run locally
 
@@ -98,11 +93,8 @@ python3 -m http.server 8080
 
 ```
 .
-├── index.html                       # the entire interactive diagram (self-contained)
-├── README.md
-└── .github/
-    └── workflows/
-        └── deploy-pages.yml         # GitHub Pages deployment
+├── index.html   # the entire interactive diagram (self-contained)
+└── README.md
 ```
 
 ## 📄 License
